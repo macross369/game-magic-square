@@ -1,0 +1,1945 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>清閒小築-數學遊戲館｜魔方陣七重試煉</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+  <!-- html2canvas & jsPDF for crisp Traditional Chinese PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    :root {
+      --gold-light: #fde047;
+      --gold-mid: #f59e0b;
+      --gold-dark: #92400e;
+      --parchment-bg: #fef3c7;
+      --parchment-border: #b45309;
+      --stone-dark: #1e1b4b;
+    }
+
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background: radial-gradient(circle at 50% 10%, #312e81 0%, #1e1b4b 45%, #0f172a 100%);
+      color: #1f2937;
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* 奇幻標題金字特效 */
+    .fantasy-title {
+      background: linear-gradient(180deg, #fffbeb 0%, #fde047 45%, #f59e0b 85%, #d97706 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 4px 0 #78350f) drop-shadow(0 6px 12px rgba(0, 0, 0, 0.65));
+    }
+
+    /* 羊皮紙捲軸卡片質感 */
+    .parchment-card {
+      background: linear-gradient(145deg, #fffbeb 0%, #fef3c7 65%, #fde68a 100%);
+      border: 3px solid #b45309;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45), inset 0 0 20px rgba(217, 119, 6, 0.2);
+    }
+
+    /* 石碑關卡按鈕 */
+    .stage-btn {
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 4px 0 #451a03, 0 6px 12px rgba(0,0,0,0.35);
+    }
+    .stage-btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #451a03;
+    }
+    .stage-btn.active {
+      background: linear-gradient(180deg, #fde047 0%, #f59e0b 100%);
+      color: #451a03;
+      border-color: #fffbeb;
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 5px 0 #92400e, 0 0 18px rgba(250, 204, 21, 0.7);
+    }
+
+    /* 魔方陣盤面外框發光 */
+    .magic-board-frame {
+      background: linear-gradient(135deg, #78350f 0%, #451a03 100%);
+      border: 4px solid #f59e0b;
+      box-shadow: 0 0 28px rgba(245, 158, 11, 0.45), inset 0 0 15px rgba(0, 0, 0, 0.6);
+    }
+
+    /* 魔方陣格子樣式 */
+    .magic-cell {
+      user-select: none;
+      transition: transform 0.12s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .magic-cell.given {
+      background: linear-gradient(180deg, #f3e8d2 0%, #e7d3b0 100%);
+      color: #292524;
+      font-weight: 900;
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(120,53,15,0.2);
+    }
+    .magic-cell.editable {
+      background: #ffffff;
+      color: #1d4ed8;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .magic-cell.editable:hover {
+      background: #eff6ff;
+    }
+    .magic-cell.selected {
+      background: #fef08a !important;
+      outline: 3px solid #ea580c;
+      outline-offset: -3px;
+      transform: scale(1.04);
+      z-index: 10;
+      box-shadow: 0 0 14px rgba(234, 88, 12, 0.65);
+    }
+    .magic-cell.related-highlight:not(.selected) {
+      background-color: #fef9c3;
+    }
+    .magic-cell.cell-correct {
+      background: #dcfce7 !important;
+      color: #15803d !important;
+      outline: 2px solid #22c55e;
+      outline-offset: -2px;
+    }
+    .magic-cell.cell-wrong {
+      background: #fee2e2 !important;
+      color: #b91c1c !important;
+      outline: 2px solid #ef4444;
+      outline-offset: -2px;
+      animation: shake 0.35s ease-in-out;
+    }
+
+    /* 數字寶石按鈕 */
+    .num-gem {
+      transition: all 0.15s ease;
+      box-shadow: 0 3px 0 #1e3a8a;
+    }
+    .num-gem:active:not(:disabled) {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #1e3a8a;
+    }
+    .num-gem.used {
+      opacity: 0.35;
+      background: #cbd5e1;
+      color: #475569;
+      box-shadow: none;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+    }
+    .float-badge {
+      animation: floatSlow 3s ease-in-out infinite;
+    }
+
+    /* 列印專用樣式 (若使用者直接按 Ctrl+P) */
+    @media print {
+      body { background: white !important; color: black !important; }
+      #app-container { display: none !important; }
+      #print-preview-sheet {
+        position: static !important;
+        left: 0 !important;
+        width: 100% !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="pb-10">
+
+  <!-- 主應用程式容器 -->
+  <div id="app-container" class="max-w-7xl mx-auto px-3 sm:px-6 pt-4">
+
+    <!-- 頂部奇幻橫幅 Header -->
+    <header class="text-center mb-5 relative">
+      <div class="inline-flex items-center gap-2 bg-slate-900/90 border-2 border-amber-400 text-amber-300 px-4 py-1 rounded-full text-xs sm:text-sm font-bold shadow-lg mb-2">
+        <span>★</span>
+        <span>清閒小築-數學遊戲館</span>
+        <span>★</span>
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-black tracking-wider fantasy-title leading-tight">
+        魔方陣七重試煉
+      </h1>
+      <div class="mt-2 inline-block bg-amber-400 text-amber-950 font-black px-5 py-1 rounded-xl border-2 border-amber-800 shadow-md text-sm sm:text-base">
+        六大挑戰關卡 × 隱藏無解之謎（支援平板觸控與 PDF 學習單下載）
+      </div>
+    </header>
+
+    <!-- 關卡選擇列 (六種挑戰等級 + 2x2 無解彩蛋關) -->
+    <nav aria-label="魔方陣關卡選擇" class="mb-6">
+      <div class="bg-slate-900/75 backdrop-blur-md border-2 border-amber-500/50 rounded-2xl p-3 shadow-xl">
+        <div class="flex items-center justify-between mb-2 px-1">
+          <span class="text-amber-300 font-bold text-sm sm:text-base flex items-center gap-1.5">
+            <span>🏰</span> 選擇試煉關卡（共 6 種挑戰等級）：
+          </span>
+          <button onclick="openFormulaModal()" class="text-xs sm:text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-xl border border-indigo-300 shadow transition flex items-center gap-1">
+            <span>📜</span> 魔術常數公式與總表
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5" id="stage-buttons">
+          <!-- 由 JS 動態生成 1x1 ~ 7x7 按鈕 -->
+        </div>
+      </div>
+    </nav>
+
+    <!-- 主要遊戲與互動區 -->
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- 左側 / 中央：魔方陣挑戰盤面 (佔 7 欄) -->
+      <section class="lg:col-span-7 parchment-card rounded-3xl p-4 sm:p-6 relative">
+        <!-- 關卡標題與魔術常數資訊列 -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b-2 border-amber-700/30">
+          <div>
+            <div class="flex items-center gap-2">
+              <span id="level-badge" class="bg-red-700 text-amber-100 text-xs sm:text-sm font-black px-3 py-1 rounded-lg shadow">
+                第 2 關
+              </span>
+              <h2 id="level-title" class="text-2xl sm:text-3xl font-black text-amber-950">
+                3×3 推理關
+              </h2>
+            </div>
+            <p id="level-desc" class="text-xs sm:text-sm text-amber-900 font-bold mt-1">
+              填入數字 <span class="text-red-700">1 ～ 9</span>，使每行、每列與兩條對角線總和皆相同！
+            </p>
+          </div>
+
+          <!-- 魔術常數牌 -->
+          <div class="bg-amber-900 text-amber-50 px-4 py-2 rounded-2xl border-2 border-amber-400 shadow-md text-center min-w-[130px]">
+            <div class="text-xs text-amber-300 font-bold">目標魔術常數 (M)</div>
+            <div id="magic-constant-display" class="text-2xl sm:text-3xl font-black text-yellow-300 tracking-wide">
+              15
+            </div>
+          </div>
+        </div>
+
+        <!-- 難度與輔助功能控制列 -->
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4 bg-amber-100/90 p-2.5 rounded-2xl border border-amber-400">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-xs sm:text-sm font-black text-amber-950 mr-1">挖空難度：</span>
+            <button onclick="setDifficulty('easy')" id="diff-easy" class="diff-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition">
+              初學（提示多）
+            </button>
+            <button onclick="setDifficulty('medium')" id="diff-medium" class="diff-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition">
+              標準挑戰
+            </button>
+            <button onclick="setDifficulty('hard')" id="diff-hard" class="diff-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition">
+              高手（提示少）
+            </button>
+          </div>
+
+          <!-- 即時連線總和開關 (平板教學超實用) -->
+          <label class="inline-flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-xl border border-amber-400 shadow-sm select-none">
+            <input type="checkbox" id="toggle-live-sums" checked onchange="renderBoard()" class="w-4 h-4 accent-amber-600 rounded">
+            <span class="text-xs sm:text-sm font-bold text-amber-950">顯示即時連線總和</span>
+          </label>
+        </div>
+
+        <!-- 互動魔方陣盤面容器 -->
+        <div class="flex flex-col items-center justify-center my-2">
+          <div id="board-wrapper" class="p-3 sm:p-4 rounded-2xl magic-board-frame max-w-full overflow-x-auto">
+            <!-- JS 動態渲染包含邊緣總和提示的網格 -->
+            <div id="magic-grid-container" class="inline-block"></div>
+          </div>
+
+          <!-- 操作提示 -->
+          <p class="text-xs text-amber-900/80 font-bold mt-2.5 text-center">
+            💡 平板操作提示：先點選盤面上的「白色空格」，再點右側「數字寶石」即可填入數字！
+          </p>
+        </div>
+
+        <!-- 底部功能按鈕列 -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-5 pt-4 border-t-2 border-amber-700/30">
+          <button onclick="checkSolution()" class="bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white font-black py-3 px-3 rounded-2xl shadow-md border-b-4 border-emerald-900 active:translate-y-0.5 transition flex items-center justify-center gap-1.5 text-sm sm:text-base">
+            <span>✅</span> 核對答案
+          </button>
+
+          <button onclick="toggleRevealAnswer()" id="btn-reveal" class="bg-gradient-to-b from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-white font-black py-3 px-3 rounded-2xl shadow-md border-b-4 border-amber-900 active:translate-y-0.5 transition flex items-center justify-center gap-1.5 text-sm sm:text-base">
+            <span>👁️</span> 觀看解答
+          </button>
+
+          <button onclick="resetCurrentPuzzle()" class="bg-gradient-to-b from-slate-500 to-slate-700 hover:from-slate-400 hover:to-slate-600 text-white font-black py-3 px-3 rounded-2xl shadow-md border-b-4 border-slate-900 active:translate-y-0.5 transition flex items-center justify-center gap-1.5 text-sm sm:text-base">
+            <span>🔄</span> 清空重填
+          </button>
+
+          <button onclick="generateNewPuzzle(true)" class="bg-gradient-to-b from-indigo-500 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 text-white font-black py-3 px-3 rounded-2xl shadow-md border-b-4 border-indigo-900 active:translate-y-0.5 transition flex items-center justify-center gap-1.5 text-sm sm:text-base">
+            <span>🎲</span> 隨機換題
+          </button>
+        </div>
+      </section>
+
+      <!-- 右側：平板數字寶石盤 & PDF 學習單下載區 (佔 5 欄) -->
+      <aside class="lg:col-span-5 space-y-5">
+
+        <!-- 1. 平板專用數字寶石鍵盤 -->
+        <div class="parchment-card rounded-3xl p-4 sm:p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-lg sm:text-xl font-black text-amber-950 flex items-center gap-2">
+              <span>💎</span> 數字寶石盤（點擊填入）
+            </h3>
+            <button onclick="clearSelectedCell()" class="bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-black px-3.5 py-2 rounded-xl shadow border-b-2 border-rose-900 active:translate-y-0.5 transition">
+              ⌫ 清除此格
+            </button>
+          </div>
+
+          <div class="text-xs font-bold text-amber-900 mb-2.5 flex items-center justify-between bg-amber-200/70 px-3 py-1.5 rounded-xl">
+            <span>目前選取格位：<strong id="selected-cell-label" class="text-red-700">尚未選取</strong></span>
+            <span>已填入：<strong id="filled-count-label" class="text-indigo-800">0 / 9</strong></span>
+          </div>
+
+          <!-- 數字按鈕網格 (自動適應 1 ~ n^2) -->
+          <div id="number-pad" class="grid grid-cols-5 sm:grid-cols-7 gap-2 max-h-[290px] overflow-y-auto p-1">
+            <!-- JS 動態生成 1 ~ n^2 按鈕 -->
+          </div>
+        </div>
+
+        <!-- 2. PDF 紙本練習單下載專區 -->
+        <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border-3 border-amber-400 rounded-3xl p-4 sm:p-5 text-white shadow-2xl">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-2xl">🖨️</span>
+            <h3 class="text-lg sm:text-xl font-black text-yellow-300">
+              學生紙本練習單（PDF 下載）
+            </h3>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-300 mb-4 leading-relaxed">
+            可將目前畫面上的關卡題目（或包含完整解答），一鍵匯出為排版精美的 <strong class="text-amber-300">A4 學習單 PDF 檔</strong>，方便列印發給學生課堂練習！
+          </p>
+
+          <div class="space-y-2.5">
+            <button onclick="downloadPDF('current-blank')" class="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black py-3 px-4 rounded-2xl shadow-lg border-b-4 border-blue-900 active:translate-y-0.5 transition flex items-center justify-between">
+              <span class="flex items-center gap-2 text-sm sm:text-base">
+                <span>📄</span> 下載本關「題目練習卷」PDF
+              </span>
+              <span class="text-xs bg-blue-950/60 px-2.5 py-1 rounded-lg">學生作答用</span>
+            </button>
+
+            <button onclick="downloadPDF('current-answer')" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black py-3 px-4 rounded-2xl shadow-lg border-b-4 border-orange-900 active:translate-y-0.5 transition flex items-center justify-between">
+              <span class="flex items-center gap-2 text-sm sm:text-base">
+                <span>📑</span> 下載本關「題目＋解答卷」PDF
+              </span>
+              <span class="text-xs bg-orange-950/60 px-2.5 py-1 rounded-lg">第1面題目／第2面解答</span>
+            </button>
+
+            <button onclick="downloadPDF('all-six-levels')" class="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 text-white font-black py-3 px-4 rounded-2xl shadow-lg border-b-4 border-purple-950 active:translate-y-0.5 transition flex items-center justify-between">
+              <span class="flex items-center gap-2 text-sm sm:text-base">
+                <span>📚</span> 下載「五大試煉全套挑戰卷」PDF
+              </span>
+              <span class="text-xs bg-purple-950/60 px-2.5 py-1 rounded-lg">3×3～7×7＋解答</span>
+            </button>
+
+            <button onclick="openCustomPrintModal()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-3 px-4 rounded-2xl shadow-lg border-b-4 border-teal-950 active:translate-y-0.5 transition flex items-center justify-between">
+              <span class="flex items-center gap-2 text-sm sm:text-base">
+                <span>🛠️</span> 自訂挑選關卡與題數 PDF
+              </span>
+              <span class="text-xs bg-teal-950/60 px-2.5 py-1 rounded-lg">客製化出題</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. 什麼是魔方陣？規則小百科 -->
+        <div class="parchment-card rounded-3xl p-4 sm:p-5">
+          <h3 class="text-base sm:text-lg font-black text-amber-950 mb-2 flex items-center gap-1.5">
+            <span>💡</span> 什麼是魔方陣？
+          </h3>
+          <p class="text-xs sm:text-sm text-amber-950/90 leading-relaxed font-medium">
+            把連續整數 <strong class="text-red-700">1 到 n²</strong> 不重複地排成 <strong class="text-red-700">n × n</strong> 的正方形，使<strong>每一列、每一行及兩條主對角線</strong>的總和都相同（此總和稱為「魔術常數 M」）。
+          </p>
+        </div>
+
+      </aside>
+    </main>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 彈跳視窗 1：魔術常數公式與 1x1~7x7 總表    -->
+  <!-- ========================================== -->
+  <div id="modal-formula" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="parchment-card rounded-3xl max-w-2xl w-full p-5 sm:p-6 relative max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div class="flex items-center justify-between pb-3 mb-4 border-b-2 border-amber-700/30">
+        <h3 class="text-xl sm:text-2xl font-black text-amber-950 flex items-center gap-2">
+          <span>📜</span> 魔術常數公式與 1×1 ～ 7×7 總整理
+        </h3>
+        <button onclick="closeModal('modal-formula')" class="bg-amber-900 text-white w-9 h-9 rounded-full font-black hover:bg-red-700 transition">✕</button>
+      </div>
+
+      <div class="bg-white/90 border-2 border-amber-500 rounded-2xl p-4 mb-4 text-center shadow-inner">
+        <div class="text-sm font-bold text-amber-900 mb-1">魔術常數計算公式（n 為正方形的邊長階數）</div>
+        <div class="text-2xl sm:text-3xl font-black text-red-700 tracking-wider my-2">
+          M = <span class="inline-block border-b-2 border-red-700 px-2">n ( n² + 1 )</span> ÷ 2
+        </div>
+        <p class="text-xs sm:text-sm text-stone-700 font-bold">
+          原理：1 到 n² 的總和為 n²(n²+1)÷2，平均分配給 n 列（或 n 行），每條線的和即為 M！
+        </p>
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border-2 border-amber-800 shadow">
+        <table class="w-full text-center border-collapse bg-white text-xs sm:text-sm">
+          <thead>
+            <tr class="bg-amber-800 text-amber-100 font-black">
+              <th class="p-2.5 border border-amber-700">階數</th>
+              <th class="p-2.5 border border-amber-700">1×1</th>
+              <th class="p-2.5 border border-amber-700 bg-rose-800">2×2</th>
+              <th class="p-2.5 border border-amber-700">3×3</th>
+              <th class="p-2.5 border border-amber-700">4×4</th>
+              <th class="p-2.5 border border-amber-700">5×5</th>
+              <th class="p-2.5 border border-amber-700">6×6</th>
+              <th class="p-2.5 border border-amber-700">7×7</th>
+            </tr>
+          </thead>
+          <tbody class="font-bold text-stone-800">
+            <tr>
+              <td class="p-2.5 border border-amber-300 bg-amber-100 font-black">使用數字</td>
+              <td class="p-2.5 border border-amber-300">1</td>
+              <td class="p-2.5 border border-amber-300 bg-rose-50 text-rose-700">1～4</td>
+              <td class="p-2.5 border border-amber-300">1～9</td>
+              <td class="p-2.5 border border-amber-300">1～16</td>
+              <td class="p-2.5 border border-amber-300">1～25</td>
+              <td class="p-2.5 border border-amber-300">1～36</td>
+              <td class="p-2.5 border border-amber-300">1～49</td>
+            </tr>
+            <tr>
+              <td class="p-2.5 border border-amber-300 bg-amber-100 font-black">魔術常數</td>
+              <td class="p-2.5 border border-amber-300 text-indigo-800 font-black">1</td>
+              <td class="p-2.5 border border-amber-300 bg-rose-100 text-rose-700 font-black">無解</td>
+              <td class="p-2.5 border border-amber-300 text-indigo-800 font-black">15</td>
+              <td class="p-2.5 border border-amber-300 text-indigo-800 font-black">34</td>
+              <td class="p-2.5 border border-amber-300 text-indigo-800 font-black">65</td>
+              <td class="p-2.5 border border-amber-300 text-indigo-800 font-black">111</td>
+              <td class="p-2.5 border border-amber-300 text-indigo-800 font-black">175</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-5 text-right">
+        <button onclick="closeModal('modal-formula')" class="bg-amber-800 hover:bg-amber-700 text-white font-black px-6 py-2.5 rounded-xl shadow">
+          我知道了！
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 彈跳視窗 2：2x2 魔方陣無解原理解密         -->
+  <!-- ========================================== -->
+  <div id="modal-unsolvable" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="parchment-card rounded-3xl max-w-lg w-full p-5 sm:p-6 relative shadow-2xl border-rose-700">
+      <div class="flex items-center justify-between pb-3 mb-4 border-b-2 border-rose-700/30">
+        <h3 class="text-xl sm:text-2xl font-black text-rose-800 flex items-center gap-2">
+          <span>🚫</span> 2×2 魔方陣為什麼「無解」？
+        </h3>
+        <button onclick="closeModal('modal-unsolvable')" class="bg-rose-800 text-white w-9 h-9 rounded-full font-black hover:bg-rose-600 transition">✕</button>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center gap-4 bg-white/90 p-4 rounded-2xl border-2 border-rose-300 mb-4">
+        <div class="relative w-28 h-28 grid grid-cols-2 border-2 border-stone-800 font-black text-2xl text-stone-800 shrink-0 bg-rose-50">
+          <div class="flex items-center justify-center border-r border-b border-stone-800">1</div>
+          <div class="flex items-center justify-center border-b border-stone-800">2</div>
+          <div class="flex items-center justify-center border-r border-stone-800">3</div>
+          <div class="flex items-center justify-center">4</div>
+          <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
+            <line x1="5" y1="5" x2="95" y2="95" stroke="#dc2626" stroke-width="6" stroke-linecap="round" />
+            <line x1="95" y1="5" x2="5" y2="95" stroke="#dc2626" stroke-width="6" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="text-xs sm:text-sm text-stone-800 leading-relaxed font-bold space-y-1.5">
+          <p>1. 套用公式算出 2×2 的魔術常數：<span class="text-rose-700 font-black">M = 2×(4+1)÷2 = 5</span>。</p>
+          <p>2. 使用 1、2、3、4 湊出總和為 5，只有 <span class="text-indigo-700">1＋4＝5</span> 與 <span class="text-indigo-700">2＋3＝5</span> 兩種組合。</p>
+          <p>3. 每個格子都要同時滿足「橫列、直行、對角線」三條線總和為 5，必然會出現重複數字，因此<strong>無解</strong>！</p>
+        </div>
+      </div>
+
+      <div class="text-right">
+        <button onclick="closeModal('modal-unsolvable')" class="bg-rose-700 hover:bg-rose-600 text-white font-black px-6 py-2.5 rounded-xl shadow">
+          返回繼續挑戰
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 彈跳視窗 3：核對答案與過關提示視窗         -->
+  <!-- ========================================== -->
+  <div id="modal-feedback" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="parchment-card rounded-3xl max-w-md w-full p-6 text-center shadow-2xl">
+      <div id="feedback-icon" class="text-5xl mb-3">🏆</div>
+      <h3 id="feedback-title" class="text-2xl font-black text-amber-950 mb-2">恭喜過關！</h3>
+      <p id="feedback-message" class="text-sm sm:text-base text-amber-900 font-bold leading-relaxed mb-5">
+        你成功完成了魔方陣試煉！
+      </p>
+      <div class="flex flex-wrap justify-center gap-3">
+        <button id="btn-next-level" onclick="goNextLevel()" class="hidden bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white font-black px-5 py-2.5 rounded-xl shadow-md border-b-4 border-emerald-900">
+          挑戰下一關 ➔
+        </button>
+        <button onclick="closeModal('modal-feedback')" class="bg-amber-800 hover:bg-amber-700 text-white font-black px-6 py-2.5 rounded-xl shadow-md">
+          確定
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 彈跳視窗 4：自訂挑選關卡與題數 PDF 設定    -->
+  <!-- ========================================== -->
+  <div id="modal-custom-print" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="parchment-card rounded-3xl max-w-xl w-full p-5 sm:p-6 relative max-h-[92vh] overflow-y-auto shadow-2xl">
+      <div class="flex items-center justify-between pb-3 mb-4 border-b-2 border-amber-700/30">
+        <h3 class="text-xl sm:text-2xl font-black text-amber-950 flex items-center gap-2">
+          <span>🛠️</span> 自訂挑選關卡與題數 PDF
+        </h3>
+        <button onclick="closeModal('modal-custom-print')" class="bg-amber-900 text-white w-9 h-9 rounded-full font-black hover:bg-red-700 transition">✕</button>
+      </div>
+
+      <!-- 步驟 1：挑選要印製的關卡 -->
+      <div class="mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <label class="text-sm sm:text-base font-black text-amber-950">1. 挑選需要印製的關卡（可複選）：</label>
+          <div class="flex gap-1.5 text-xs font-bold">
+            <button type="button" onclick="presetCustomStages([3,4,5,6,7])" class="bg-amber-800 hover:bg-amber-700 text-amber-100 px-2.5 py-1 rounded-lg transition">3×3～7×7 全選</button>
+            <button type="button" onclick="presetCustomStages([3,4])" class="bg-white hover:bg-amber-100 text-amber-950 border border-amber-500 px-2.5 py-1 rounded-lg transition">基礎(3×3~4×4)</button>
+            <button type="button" onclick="presetCustomStages([5,6,7])" class="bg-white hover:bg-amber-100 text-amber-950 border border-amber-500 px-2.5 py-1 rounded-lg transition">進階(5×5~7×7)</button>
+          </div>
+        </div>
+        <div id="custom-stage-checkboxes" class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <!-- JS 動態生成關卡核取方塊 -->
+        </div>
+      </div>
+
+      <!-- 步驟 2：設定需要印製的總題數 -->
+      <div class="mb-4 bg-white/85 border-2 border-amber-500 rounded-2xl p-3.5">
+        <label class="block text-sm sm:text-base font-black text-amber-950 mb-2">2. 設定需要印製的總題數（1 ～ 24 題）：</label>
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center border-2 border-amber-700 rounded-xl overflow-hidden bg-white">
+            <button type="button" onclick="adjustCustomQuestionCount(-1)" class="px-3.5 py-2 bg-amber-200 hover:bg-amber-300 font-black text-amber-950 text-lg">－</button>
+            <input type="number" id="custom-question-count" value="4" min="1" max="24" onchange="updateCustomPrintSummary()" oninput="updateCustomPrintSummary()" class="w-16 text-center font-black text-lg text-indigo-900 focus:outline-none">
+            <button type="button" onclick="adjustCustomQuestionCount(1)" class="px-3.5 py-2 bg-amber-200 hover:bg-amber-300 font-black text-amber-950 text-lg">＋</button>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" onclick="setCustomQuestionCount(2)" class="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-400 text-xs sm:text-sm font-black text-amber-950">2 題</button>
+            <button type="button" onclick="setCustomQuestionCount(4)" class="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-400 text-xs sm:text-sm font-black text-amber-950">4 題</button>
+            <button type="button" onclick="setCustomQuestionCount(6)" class="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-400 text-xs sm:text-sm font-black text-amber-950">6 題</button>
+            <button type="button" onclick="setCustomQuestionCount(8)" class="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-400 text-xs sm:text-sm font-black text-amber-950">8 題</button>
+            <button type="button" onclick="setCustomQuestionCount(12)" class="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-400 text-xs sm:text-sm font-black text-amber-950">12 題</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 步驟 3：選擇挖空難度 -->
+      <div class="mb-4">
+        <label class="block text-sm sm:text-base font-black text-amber-950 mb-2">3. 選擇題目挖空難度：</label>
+        <div class="grid grid-cols-3 gap-2">
+          <label class="cursor-pointer">
+            <input type="radio" name="custom-diff" value="easy" onchange="updateCustomPrintSummary()" class="peer sr-only">
+            <div class="text-center py-2 px-2 rounded-xl border-2 border-amber-400 bg-white peer-checked:bg-amber-800 peer-checked:text-amber-100 peer-checked:border-amber-900 font-black text-xs sm:text-sm transition">
+              初學（提示多）
+            </div>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="custom-diff" value="medium" checked onchange="updateCustomPrintSummary()" class="peer sr-only">
+            <div class="text-center py-2 px-2 rounded-xl border-2 border-amber-400 bg-white peer-checked:bg-amber-800 peer-checked:text-amber-100 peer-checked:border-amber-900 font-black text-xs sm:text-sm transition">
+              標準挑戰
+            </div>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="custom-diff" value="hard" onchange="updateCustomPrintSummary()" class="peer sr-only">
+            <div class="text-center py-2 px-2 rounded-xl border-2 border-amber-400 bg-white peer-checked:bg-amber-800 peer-checked:text-amber-100 peer-checked:border-amber-900 font-black text-xs sm:text-sm transition">
+              高手（提示少）
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- 出題預覽摘要 -->
+      <div id="custom-print-summary" class="bg-indigo-950 text-amber-200 rounded-2xl p-3.5 text-xs sm:text-sm font-bold mb-5 leading-relaxed border border-indigo-700">
+        <!-- JS 動態顯示配題明細 -->
+      </div>
+
+      <!-- 下載按鈕列 -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <button type="button" onclick="generateCustomPDF(false)" class="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black py-3 px-4 rounded-2xl shadow-lg border-b-4 border-blue-900 active:translate-y-0.5 transition text-sm sm:text-base flex items-center justify-center gap-1.5">
+          <span>📄</span> 下載「純題目卷」PDF
+        </button>
+        <button type="button" onclick="generateCustomPDF(true)" class="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black py-3 px-4 rounded-2xl shadow-lg border-b-4 border-orange-900 active:translate-y-0.5 transition text-sm sm:text-base flex items-center justify-center gap-1.5">
+          <span>📑</span> 下載「題目＋解答卷」PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 載入中提示 Toast (匯出 PDF 時顯示) -->
+  <div id="pdf-loading-toast" class="fixed bottom-5 right-5 bg-slate-900 text-amber-300 border-2 border-amber-400 px-5 py-3 rounded-2xl shadow-2xl z-50 hidden items-center gap-3 font-bold">
+    <svg class="animate-spin h-5 w-5 text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+    </svg>
+    <span id="pdf-loading-text">正在產生高畫質 A4 PDF 學習單...</span>
+  </div>
+
+  <!-- 離屏 A4 PDF 渲染專用容器 -->
+  <div id="pdf-render-sandbox" style="position: fixed; left: -9999px; top: 0; width: 794px; background: #ffffff; color: #000000; font-family: 'Noto Sans TC', sans-serif;"></div>
+
+  <script>
+    /**
+     * ============================================================================
+     * 魔方陣七重試煉 - 核心資料與邏輯
+     * 嚴格對應海報圖中的 1x1 到 7x7 標準魔方陣解答與關卡命名
+     * ============================================================================
+     */
+    const STAGES_CONFIG = [
+      {
+        id: 1,
+        n: 1,
+        code: '1×1',
+        name: '入門關',
+        fullTitle: '1×1 入門關',
+        magicConstant: 1,
+        solvable: true,
+        baseSolution: [
+          [1]
+        ]
+      },
+      {
+        id: 2,
+        n: 2,
+        code: '2×2',
+        name: '無解關',
+        fullTitle: '2×2 無解關',
+        magicConstant: '無解',
+        solvable: false,
+        baseSolution: null
+      },
+      {
+        id: 3,
+        n: 3,
+        code: '3×3',
+        name: '推理關',
+        fullTitle: '3×3 推理關',
+        magicConstant: 15,
+        solvable: true,
+        baseSolution: [
+          [8, 1, 6],
+          [3, 5, 7],
+          [4, 9, 2]
+        ]
+      },
+      {
+        id: 4,
+        n: 4,
+        code: '4×4',
+        name: '進階關',
+        fullTitle: '4×4 進階關',
+        magicConstant: 34,
+        solvable: true,
+        baseSolution: [
+          [16,  2,  3, 13],
+          [ 5, 11, 10,  8],
+          [ 9,  7,  6, 12],
+          [ 4, 14, 15,  1]
+        ]
+      },
+      {
+        id: 5,
+        n: 5,
+        code: '5×5',
+        name: '邏輯關',
+        fullTitle: '5×5 邏輯關',
+        magicConstant: 65,
+        solvable: true,
+        baseSolution: [
+          [17, 24,  1,  8, 15],
+          [23,  5,  7, 14, 16],
+          [ 4,  6, 13, 20, 22],
+          [10, 12, 19, 21,  3],
+          [11, 18, 25,  2,  9]
+        ]
+      },
+      {
+        id: 6,
+        n: 6,
+        code: '6×6',
+        name: '策略關',
+        fullTitle: '6×6 策略關',
+        magicConstant: 111,
+        solvable: true,
+        baseSolution: [
+          [35,  1,  6, 26, 19, 24],
+          [ 3, 32,  7, 21, 23, 25],
+          [31,  9,  2, 22, 27, 20],
+          [ 8, 28, 33, 17, 10, 15],
+          [30,  5, 34, 12, 14, 16],
+          [ 4, 36, 29, 13, 18, 11]
+        ]
+      },
+      {
+        id: 7,
+        n: 7,
+        code: '7×7',
+        name: '終極關',
+        fullTitle: '7×7 終極關',
+        magicConstant: 175,
+        solvable: true,
+        baseSolution: [
+          [30, 39, 48,  1, 10, 19, 28],
+          [38, 47,  7,  9, 18, 27, 29],
+          [46,  6,  8, 17, 26, 35, 37],
+          [ 5, 14, 16, 25, 34, 36, 45],
+          [13, 15, 24, 33, 42, 44,  4],
+          [21, 23, 32, 41, 43,  3, 12],
+          [22, 31, 40, 49,  2, 11, 20]
+        ]
+      }
+    ];
+
+    // 遊戲全域狀態
+    let currentStageId = 3;          // 預設開啟 3x3 推理關（最經典入門）
+    let currentDifficulty = 'medium'; // 'easy' | 'medium' | 'hard'
+    let solutionGrid = [];           // 當前題目完整解答二維陣列
+    let givenMask = [];              // true 表示題目預設給定數字，false 表示需作答空格
+    let userGrid = [];               // 使用者目前盤面數值 (null 代表空白)
+    let selectedCell = null;         // { r, c } 目前選取的空格座標
+    let isShowingAnswer = false;     // 是否正在觀看解答模式
+    let validationState = null;      // null 或二維陣列 ('correct' | 'wrong' | null)
+
+    /**
+     * 初始化網頁
+     */
+    window.addEventListener('DOMContentLoaded', () => {
+      renderStageButtons();
+      updateDifficultyButtons();
+      selectStage(3, false); // 載入 3x3 經典海報盤面
+      setupKeyboardSupport();
+    });
+
+    /**
+     * 渲染頂部七重試煉關卡按鈕
+     */
+    function renderStageButtons() {
+      const container = document.getElementById('stage-buttons');
+      container.innerHTML = '';
+
+      // 計算可挑戰關卡序號 (1~6)
+      let playableIndex = 0;
+
+      STAGES_CONFIG.forEach(stage => {
+        if (stage.solvable) playableIndex++;
+        const isCurrent = stage.id === currentStageId;
+        const btn = document.createElement('button');
+
+        if (!stage.solvable) {
+          // 2x2 無解關特殊樣式
+          btn.className = `stage-btn rounded-xl py-2 px-2 text-center border-2 border-rose-400 bg-gradient-to-b from-rose-800 to-rose-950 text-rose-100 flex flex-col items-center justify-center`;
+          btn.innerHTML = `
+            <span class="text-[11px] bg-rose-600 text-white px-2 py-0.5 rounded-full font-black mb-0.5">隱藏解密</span>
+            <span class="text-sm sm:text-base font-black">${stage.fullTitle}</span>
+          `;
+          btn.onclick = () => openModal('modal-unsolvable');
+        } else {
+          btn.className = `stage-btn rounded-xl py-2 px-2 text-center border-2 ${
+            isCurrent
+              ? 'active font-black'
+              : 'border-amber-600/70 bg-gradient-to-b from-amber-900 to-stone-900 text-amber-100 hover:border-amber-400'
+          } flex flex-col items-center justify-center`;
+          btn.innerHTML = `
+            <span class="text-[11px] ${isCurrent ? 'bg-amber-900 text-amber-200' : 'bg-amber-700/70 text-amber-200'} px-2 py-0.5 rounded-full font-bold mb-0.5">
+              挑戰等級 ${playableIndex}
+            </span>
+            <span class="text-sm sm:text-base font-black">${stage.fullTitle}</span>
+          `;
+          btn.onclick = () => selectStage(stage.id, false);
+        }
+
+        container.appendChild(btn);
+      });
+    }
+
+    /**
+     * 切換關卡
+     * @param {number} stageId 關卡 ID (1~7)
+     * @param {boolean} randomizeTransform 是否旋轉/鏡射變換
+     */
+    function selectStage(stageId, randomizeTransform = false) {
+      const stage = STAGES_CONFIG.find(s => s.id === stageId);
+      if (!stage || !stage.solvable) return;
+
+      currentStageId = stageId;
+      isShowingAnswer = false;
+      validationState = null;
+      updateRevealButtonUI();
+      renderStageButtons();
+
+      // 更新標題資訊
+      const playableLevels = STAGES_CONFIG.filter(s => s.solvable);
+      const rank = playableLevels.findIndex(s => s.id === stageId) + 1;
+      document.getElementById('level-badge').textContent = `挑戰等級 ${rank} / 6`;
+      document.getElementById('level-title').textContent = stage.fullTitle;
+      document.getElementById('magic-constant-display').textContent = stage.magicConstant;
+
+      const maxNum = stage.n * stage.n;
+      document.getElementById('level-desc').innerHTML =
+        stage.n === 1
+          ? `入門熱身：填入數字 <span class="text-red-700">1</span>，感受魔方陣的起點！`
+          : `填入不重複數字 <span class="text-red-700">1 ～ ${maxNum}</span>，使每行、每列與兩條對角線總和皆為 <span class="text-red-700">${stage.magicConstant}</span>！`;
+
+      generateNewPuzzle(randomizeTransform);
+    }
+
+    /**
+     * 設定挖空難度
+     */
+    function setDifficulty(diff) {
+      currentDifficulty = diff;
+      updateDifficultyButtons();
+      generateNewPuzzle(false);
+    }
+
+    function updateDifficultyButtons() {
+      ['easy', 'medium', 'hard'].forEach(d => {
+        const btn = document.getElementById(`diff-${d}`);
+        if (d === currentDifficulty) {
+          btn.className = 'diff-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-black bg-amber-800 text-amber-100 shadow';
+        } else {
+          btn.className = 'diff-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-white/80 text-amber-900 hover:bg-white border border-amber-300';
+        }
+      });
+    }
+
+    /**
+     * 產生題目（支援海報原版或對稱變換後的隨機新題）
+     */
+    function generateNewPuzzle(randomizeTransform = true) {
+      const stage = STAGES_CONFIG.find(s => s.id === currentStageId);
+      isShowingAnswer = false;
+      validationState = null;
+      updateRevealButtonUI();
+
+      const puzzle = createPuzzleInstance(stage, currentDifficulty, randomizeTransform);
+      solutionGrid = puzzle.solGrid;
+      givenMask = puzzle.maskGrid;
+
+      // 初始化作答盤面
+      const n = stage.n;
+      userGrid = Array.from({ length: n }, (_, r) =>
+        Array.from({ length: n }, (_, c) => (givenMask[r][c] ? solutionGrid[r][c] : null))
+      );
+
+      // 自動選取第一個空格，方便平板直接點擊數字填入
+      selectedCell = findFirstEmptyCell();
+
+      renderBoard();
+      renderNumberPad();
+    }
+
+    /**
+     * 純函式：建立單一題目的解答與挖空遮罩（供互動模式與客製化 PDF 出題共用）
+     */
+    function createPuzzleInstance(stage, difficulty = 'medium', randomizeTransform = true) {
+      const n = stage.n;
+      let grid = stage.baseSolution.map(row => [...row]);
+
+      if (randomizeTransform && n > 1) {
+        const rotations = Math.floor(Math.random() * 4);
+        for (let r = 0; r < rotations; r++) {
+          grid = rotateMatrix90(grid);
+        }
+        if (Math.random() > 0.5) {
+          grid = grid.map(row => [...row].reverse());
+        }
+      }
+
+      const totalCells = n * n;
+      let blankCount = 0;
+      if (n === 1) {
+        blankCount = 1;
+      } else {
+        const ratioMap = {
+          easy: 0.38,   // 約留 62% 提示
+          medium: 0.52, // 約留 48% 提示
+          hard: 0.66    // 約留 34% 提示
+        };
+        blankCount = Math.max(2, Math.round(totalCells * (ratioMap[difficulty] || 0.52)));
+      }
+
+      const coords = [];
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          coords.push({ r, c });
+        }
+      }
+      shuffleArray(coords);
+
+      const mask = Array.from({ length: n }, () => Array(n).fill(true));
+      for (let i = 0; i < blankCount; i++) {
+        const { r, c } = coords[i];
+        mask[r][c] = false;
+      }
+
+      return { stage, solGrid: grid, maskGrid: mask };
+    }
+
+    /**
+     * 矩陣順時針旋轉 90 度
+     */
+    function rotateMatrix90(matrix) {
+      const n = matrix.length;
+      const res = Array.from({ length: n }, () => Array(n).fill(0));
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          res[c][n - 1 - r] = matrix[r][c];
+        }
+      }
+      return res;
+    }
+
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+
+    function findFirstEmptyCell() {
+      const n = userGrid.length;
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (!givenMask[r][c] && userGrid[r][c] === null) {
+            return { r, c };
+          }
+        }
+      }
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (!givenMask[r][c]) return { r, c };
+        }
+      }
+      return null;
+    }
+
+    /**
+     * 渲染魔方陣主盤面（包含即時列/行/對角線總和提示）
+     */
+    function renderBoard() {
+      const stage = STAGES_CONFIG.find(s => s.id === currentStageId);
+      const n = stage.n;
+      const targetM = stage.magicConstant;
+      const showSums = document.getElementById('toggle-live-sums').checked;
+      const container = document.getElementById('magic-grid-container');
+
+      // 根據階數自適應格子大小，確保在手機/平板不爆版且好點擊
+      const cellSizeClasses = {
+        1: 'w-24 h-24 text-4xl',
+        3: 'w-16 h-16 sm:w-20 sm:h-20 text-2xl sm:text-3xl',
+        4: 'w-14 h-14 sm:w-16 sm:h-16 text-xl sm:text-2xl',
+        5: 'w-12 h-12 sm:w-14 sm:h-14 text-lg sm:text-xl',
+        6: 'w-10 h-10 sm:w-12 sm:h-12 text-base sm:text-lg',
+        7: 'w-9 h-9 sm:w-11 sm:h-11 text-sm sm:text-base'
+      };
+      const cellClass = cellSizeClasses[n] || 'w-12 h-12 text-lg';
+
+      // 目前要顯示的數值來源（解答模式或作答模式）
+      const activeGrid = isShowingAnswer ? solutionGrid : userGrid;
+
+      // 計算各行、各列、兩條對角線總和
+      const rowSums = Array(n).fill(0);
+      const colSums = Array(n).fill(0);
+      let mainDiagSum = 0; // 左上到右下
+      let antiDiagSum = 0; // 右上到左下
+
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          const val = activeGrid[r][c] || 0;
+          rowSums[r] += val;
+          colSums[c] += val;
+          if (r === c) mainDiagSum += val;
+          if (r + c === n - 1) antiDiagSum += val;
+        }
+      }
+
+      // 建立網格HTML：若開啟 showSums，則為 (n+1) x (n+1) 排版（右側顯示列總和、下方顯示行總和、右下顯示主對角線、右上顯示副對角線）
+      const gridCols = showSums ? n + 1 : n;
+      let html = `<div class="grid gap-1 sm:gap-1.5 items-center justify-items-center" style="grid-template-columns: repeat(${gridCols}, minmax(0, 1fr));">`;
+
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          const val = activeGrid[r][c];
+          const isGiven = givenMask[r][c];
+          const isSelected = !isShowingAnswer && selectedCell && selectedCell.r === r && selectedCell.c === c;
+          const isRelated = !isShowingAnswer && selectedCell && (selectedCell.r === r || selectedCell.c === c);
+
+          let statusClass = '';
+          if (!isShowingAnswer && validationState && validationState[r][c]) {
+            statusClass = validationState[r][c] === 'correct' ? 'cell-correct' : 'cell-wrong';
+          }
+
+          let extraStyle = isGiven ? 'given' : 'editable';
+          if (isShowingAnswer && !isGiven) {
+            extraStyle = 'bg-amber-200 text-rose-700 font-black border-2 border-rose-400';
+          }
+
+          html += `
+            <div
+              onclick="handleCellClick(${r}, ${c})"
+              class="magic-cell ${cellClass} ${extraStyle} ${isSelected ? 'selected' : ''} ${isRelated ? 'related-highlight' : ''} ${statusClass} rounded-lg sm:rounded-xl flex items-center justify-center shadow-sm border border-stone-700/40"
+            >
+              ${val !== null ? val : ''}
+            </div>
+          `;
+        }
+
+        // 右側列總和指示徽章
+        if (showSums) {
+          const isMatch = rowSums[r] === targetM;
+          html += `
+            <div title="第 ${r + 1} 列總和" class="px-1.5 py-1 rounded-lg text-xs sm:text-sm font-black min-w-[38px] text-center ${
+              isMatch
+                ? 'bg-emerald-500 text-white shadow-sm'
+                : 'bg-amber-950/80 text-amber-200 border border-amber-600/50'
+            }">
+              ${rowSums[r]}
+            </div>
+          `;
+        }
+      }
+
+      // 底部行總和 + 主對角線總和指示列
+      if (showSums) {
+        for (let c = 0; c < n; c++) {
+          const isMatch = colSums[c] === targetM;
+          html += `
+            <div title="第 ${c + 1} 行總和" class="px-1.5 py-1 rounded-lg text-xs sm:text-sm font-black min-w-[38px] text-center ${
+              isMatch
+                ? 'bg-emerald-500 text-white shadow-sm'
+                : 'bg-amber-950/80 text-amber-200 border border-amber-600/50'
+            }">
+              ${colSums[c]}
+            </div>
+          `;
+        }
+        // 右下角顯示兩條對角線總和 (↘ / ↙)
+        const diagOk = mainDiagSum === targetM && antiDiagSum === targetM;
+        html += `
+          <div title="兩條對角線總和 (↘ / ↙)" class="px-1 py-0.5 rounded-lg text-[10px] sm:text-xs font-black text-center leading-tight ${
+            diagOk
+              ? 'bg-emerald-500 text-white shadow-sm'
+              : 'bg-indigo-950 text-amber-300 border border-amber-400/50'
+          }">
+            <div>↘${mainDiagSum}</div>
+            <div>↙${antiDiagSum}</div>
+          </div>
+        `;
+      }
+
+      html += `</div>`;
+      container.innerHTML = html;
+
+      // 更新狀態標籤
+      updateStatusLabels();
+    }
+
+    /**
+     * 更新選取格位與填寫進度文字
+     */
+    function updateStatusLabels() {
+      const n = userGrid.length;
+      const total = n * n;
+      let filled = 0;
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (userGrid[r][c] !== null) filled++;
+        }
+      }
+      document.getElementById('filled-count-label').textContent = `${filled} / ${total}`;
+
+      const cellLabel = document.getElementById('selected-cell-label');
+      if (selectedCell) {
+        cellLabel.textContent = `第 ${selectedCell.r + 1} 列，第 ${selectedCell.c + 1} 行`;
+      } else {
+        cellLabel.textContent = '無可編輯格位';
+      }
+    }
+
+    /**
+     * 渲染右側數字寶石盤 (1 ~ n^2)
+     */
+    function renderNumberPad() {
+      const stage = STAGES_CONFIG.find(s => s.id === currentStageId);
+      const maxNum = stage.n * stage.n;
+      const pad = document.getElementById('number-pad');
+
+      // 統計目前盤面上已經使用了哪些數字
+      const usedSet = new Set();
+      userGrid.forEach(row => row.forEach(val => {
+        if (val !== null) usedSet.add(val);
+      }));
+
+      let html = '';
+      for (let num = 1; num <= maxNum; num++) {
+        const isUsed = usedSet.has(num);
+        html += `
+          <button
+            onclick="inputNumber(${num})"
+            class="num-gem ${isUsed ? 'used' : 'bg-gradient-to-b from-blue-500 to-blue-700 hover:from-blue-400 hover:to-blue-600 text-white'} font-black py-2.5 rounded-xl text-sm sm:text-base border border-blue-300/60 flex items-center justify-center"
+          >
+            ${num}
+          </button>
+        `;
+      }
+      pad.innerHTML = html;
+    }
+
+    /**
+     * 點擊盤面格子
+     */
+    function handleCellClick(r, c) {
+      if (isShowingAnswer) return;
+      if (givenMask[r][c]) {
+        // 若點到題目預設鎖定格，給予輕微提示但不選取
+        return;
+      }
+      selectedCell = { r, c };
+      validationState = null;
+      renderBoard();
+    }
+
+    /**
+     * 點擊數字寶石盤填入數字
+     */
+    function inputNumber(num) {
+      if (isShowingAnswer) {
+        toggleRevealAnswer(); // 若在看解答模式，自動切回作答模式
+      }
+      if (!selectedCell) {
+        selectedCell = findFirstEmptyCell();
+      }
+      if (!selectedCell) return;
+
+      const { r, c } = selectedCell;
+      if (givenMask[r][c]) return;
+
+      userGrid[r][c] = num;
+      validationState = null;
+
+      // 自動跳到下一個空白格，讓平板連續填答超順暢！
+      const nextEmpty = findNextEmptyFrom(r, c);
+      if (nextEmpty) {
+        selectedCell = nextEmpty;
+      }
+
+      renderBoard();
+      renderNumberPad();
+    }
+
+    function findNextEmptyFrom(startR, startC) {
+      const n = userGrid.length;
+      // 先往後找
+      for (let r = startR; r < n; r++) {
+        for (let c = (r === startR ? startC + 1 : 0); c < n; c++) {
+          if (!givenMask[r][c] && userGrid[r][c] === null) return { r, c };
+        }
+      }
+      // 再從頭找
+      return findFirstEmptyCell();
+    }
+
+    /**
+     * 清除目前選取格位
+     */
+    function clearSelectedCell() {
+      if (isShowingAnswer || !selectedCell) return;
+      const { r, c } = selectedCell;
+      if (givenMask[r][c]) return;
+
+      userGrid[r][c] = null;
+      validationState = null;
+      renderBoard();
+      renderNumberPad();
+    }
+
+    /**
+     * 清空重填本題
+     */
+    function resetCurrentPuzzle() {
+      const n = userGrid.length;
+      isShowingAnswer = false;
+      validationState = null;
+      updateRevealButtonUI();
+
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (!givenMask[r][c]) {
+            userGrid[r][c] = null;
+          }
+        }
+      }
+      selectedCell = findFirstEmptyCell();
+      renderBoard();
+      renderNumberPad();
+    }
+
+    /**
+     * 切換「觀看解答 / 返回作答」
+     */
+    function toggleRevealAnswer() {
+      isShowingAnswer = !isShowingAnswer;
+      validationState = null;
+      updateRevealButtonUI();
+      renderBoard();
+    }
+
+    function updateRevealButtonUI() {
+      const btn = document.getElementById('btn-reveal');
+      if (isShowingAnswer) {
+        btn.innerHTML = `<span>🙈</span> 隱藏解答`;
+        btn.className = 'bg-gradient-to-b from-rose-500 to-rose-700 text-white font-black py-3 px-3 rounded-2xl shadow-md border-b-4 border-rose-900 active:translate-y-0.5 transition flex items-center justify-center gap-1.5 text-sm sm:text-base';
+      } else {
+        btn.innerHTML = `<span>👁️</span> 觀看解答`;
+        btn.className = 'bg-gradient-to-b from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-white font-black py-3 px-3 rounded-2xl shadow-md border-b-4 border-amber-900 active:translate-y-0.5 transition flex items-center justify-center gap-1.5 text-sm sm:text-base';
+      }
+    }
+
+    /**
+     * 核對答案（同時驗證數學定義：1~n^2 不重複 + 所有行列對角線皆等於 M，支援多重合法解！）
+     */
+    function checkSolution() {
+      if (isShowingAnswer) {
+        toggleRevealAnswer();
+        return;
+      }
+
+      const stage = STAGES_CONFIG.find(s => s.id === currentStageId);
+      const n = stage.n;
+      const targetM = stage.magicConstant;
+      const maxNum = n * n;
+
+      // 1. 檢查是否還有空格
+      let hasEmpty = false;
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (userGrid[r][c] === null) hasEmpty = true;
+        }
+      }
+
+      if (hasEmpty) {
+        showFeedbackModal(
+          '⏳',
+          '尚未填寫完成喔！',
+          '盤面上還有空白的魔法格位，請先將所有空格都填入數字後再核對答案！',
+          false
+        );
+        return;
+      }
+
+      // 2. 檢查是否滿足數學上的標準魔方陣定義（1~n^2 不重複，且每行、每列、兩對角線皆等於 targetM）
+      const seen = new Set();
+      let validNumbers = true;
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          const v = userGrid[r][c];
+          if (!Number.isInteger(v) || v < 1 || v > maxNum || seen.has(v)) {
+            validNumbers = false;
+          }
+          seen.add(v);
+        }
+      }
+
+      let allLinesMatch = true;
+      let diag1 = 0, diag2 = 0;
+      for (let i = 0; i < n; i++) {
+        let rSum = 0, cSum = 0;
+        for (let j = 0; j < n; j++) {
+          rSum += userGrid[i][j];
+          cSum += userGrid[j][i];
+        }
+        if (rSum !== targetM || cSum !== targetM) allLinesMatch = false;
+        diag1 += userGrid[i][i];
+        diag2 += userGrid[i][n - 1 - i];
+      }
+      if (diag1 !== targetM || diag2 !== targetM) allLinesMatch = false;
+
+      // 3. 若完全符合魔方陣規則 -> 過關！
+      if (validNumbers && allLinesMatch) {
+        validationState = Array.from({ length: n }, () => Array(n).fill('correct'));
+        renderBoard();
+        const hasNext = currentStageId < 7;
+        showFeedbackModal(
+          '🏆',
+          `恭喜通過【${stage.fullTitle}】！`,
+          `太厲害了！每一行、每一列與兩條對角線的總和都精準等於魔術常數 ${targetM}！`,
+          hasNext
+        );
+        return;
+      }
+
+      // 4. 若未通過，比對與基準解答的差異並標示錯誤提示
+      validationState = Array.from({ length: n }, () => Array(n).fill(null));
+      let errorCount = 0;
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (!givenMask[r][c]) {
+            if (userGrid[r][c] === solutionGrid[r][c]) {
+              validationState[r][c] = 'correct';
+            } else {
+              validationState[r][c] = 'wrong';
+              errorCount++;
+            }
+          }
+        }
+      }
+      renderBoard();
+
+      showFeedbackModal(
+        '🧐',
+        '差一點點！再檢查一下',
+        `有些連線的總和還不等於 ${targetM}（或數字有重複）。已為您用紅色標出可能需要調整的格位，加油！`,
+        false
+      );
+    }
+
+    /**
+     * 挑戰下一關
+     */
+    function goNextLevel() {
+      closeModal('modal-feedback');
+      let nextId = currentStageId + 1;
+      if (nextId === 2) nextId = 3; // 跳過無解的 2x2
+      if (nextId <= 7) {
+        selectStage(nextId, false);
+      }
+    }
+
+    /**
+     * 電腦鍵盤方向鍵與數字鍵支援
+     */
+    function setupKeyboardSupport() {
+      window.addEventListener('keydown', (e) => {
+        if (!selectedCell || isShowingAnswer) return;
+        const n = userGrid.length;
+        let { r, c } = selectedCell;
+
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+          clearSelectedCell();
+          return;
+        }
+
+        // 方向鍵移動
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          e.preventDefault();
+          if (e.key === 'ArrowUp') r = (r - 1 + n) % n;
+          if (e.key === 'ArrowDown') r = (r + 1) % n;
+          if (e.key === 'ArrowLeft') c = (c - 1 + n) % n;
+          if (e.key === 'ArrowRight') c = (c + 1) % n;
+          if (!givenMask[r][c]) {
+            selectedCell = { r, c };
+            renderBoard();
+          }
+          return;
+        }
+
+        // 支援鍵盤直接輸入多位數 (例如 15, 36, 49)
+        if (/^[0-9]$/.test(e.key)) {
+          const digit = parseInt(e.key, 10);
+          const maxNum = n * n;
+          const currentVal = userGrid[r][c];
+          if (currentVal !== null && currentVal * 10 + digit <= maxNum) {
+            userGrid[r][c] = currentVal * 10 + digit;
+          } else if (digit >= 1 && digit <= maxNum) {
+            userGrid[r][c] = digit;
+          }
+          validationState = null;
+          renderBoard();
+          renderNumberPad();
+        }
+      });
+    }
+
+    /**
+     * ============================================================================
+     * 自訂挑選關卡與題數彈跳視窗控制
+     * ============================================================================
+     */
+    function openCustomPrintModal() {
+      const container = document.getElementById('custom-stage-checkboxes');
+      const playableStages = STAGES_CONFIG.filter(s => s.solvable);
+
+      container.innerHTML = playableStages.map(st => {
+        // 預設勾選 3x3 與 4x4，方便教師快速出題
+        const defaultChecked = (st.n === 3 || st.n === 4) ? 'checked' : '';
+        return `
+          <label class="cursor-pointer select-none">
+            <input type="checkbox" class="custom-stage-cb peer sr-only" value="${st.id}" ${defaultChecked} onchange="updateCustomPrintSummary()">
+            <div class="p-2.5 rounded-xl border-2 border-amber-400 bg-white peer-checked:bg-amber-800 peer-checked:text-amber-100 peer-checked:border-amber-950 font-black text-xs sm:text-sm flex items-center justify-between transition shadow-sm">
+              <span>${st.fullTitle}</span>
+              <span class="text-[11px] opacity-80">M=${st.magicConstant}</span>
+            </div>
+          </label>
+        `;
+      }).join('');
+
+      // 同步目前難度設定
+      const diffRadio = document.querySelector(`input[name="custom-diff"][value="${currentDifficulty}"]`);
+      if (diffRadio) diffRadio.checked = true;
+
+      updateCustomPrintSummary();
+      openModal('modal-custom-print');
+    }
+
+    function presetCustomStages(nList) {
+      const checkboxes = document.querySelectorAll('.custom-stage-cb');
+      checkboxes.forEach(cb => {
+        const st = STAGES_CONFIG.find(s => s.id === parseInt(cb.value, 10));
+        cb.checked = st ? nList.includes(st.n) : false;
+      });
+      updateCustomPrintSummary();
+    }
+
+    function adjustCustomQuestionCount(delta) {
+      const input = document.getElementById('custom-question-count');
+      let val = parseInt(input.value, 10) || 4;
+      val = Math.min(24, Math.max(1, val + delta));
+      input.value = val;
+      updateCustomPrintSummary();
+    }
+
+    function setCustomQuestionCount(count) {
+      document.getElementById('custom-question-count').value = count;
+      updateCustomPrintSummary();
+    }
+
+    function getSelectedCustomStages() {
+      const checkedIds = Array.from(document.querySelectorAll('.custom-stage-cb:checked')).map(cb => parseInt(cb.value, 10));
+      return STAGES_CONFIG.filter(s => checkedIds.includes(s.id));
+    }
+
+    function updateCustomPrintSummary() {
+      const selectedStages = getSelectedCustomStages();
+      const input = document.getElementById('custom-question-count');
+      const totalQuestions = Math.min(24, Math.max(1, parseInt(input.value, 10) || 1));
+      const summaryEl = document.getElementById('custom-print-summary');
+
+      if (selectedStages.length === 0) {
+        summaryEl.innerHTML = `<span class="text-rose-400">⚠️ 請至少勾選一個要印製的魔方陣關卡！</span>`;
+        return;
+      }
+
+      // 計算每個勾選關卡分配到的題數
+      const countsMap = new Map();
+      selectedStages.forEach(st => countsMap.set(st.id, 0));
+      for (let i = 0; i < totalQuestions; i++) {
+        const st = selectedStages[i % selectedStages.length];
+        countsMap.set(st.id, countsMap.get(st.id) + 1);
+      }
+
+      const breakdown = selectedStages
+        .filter(st => countsMap.get(st.id) > 0)
+        .map(st => `<span class="text-yellow-300">${st.fullTitle}</span> × ${countsMap.get(st.id)} 題`)
+        .join('、');
+
+      summaryEl.innerHTML = `
+        <div>📋 <strong>出題明細（共 ${totalQuestions} 題）：</strong>${breakdown}</div>
+        <div class="text-xs text-slate-300 mt-1">💡 系統將為每道題目隨機旋轉／鏡射並重新挖空，確保每題皆不相同！</div>
+      `;
+    }
+
+    /**
+     * 執行自訂挑選關卡與題數的 PDF 產生與下載
+     */
+    async function generateCustomPDF(includeAnswers) {
+      const selectedStages = getSelectedCustomStages();
+      if (selectedStages.length === 0) {
+        showFeedbackModal('⚠️', '尚未選擇關卡', '請先勾選至少一個要印製的魔方陣關卡！', false);
+        return;
+      }
+
+      const input = document.getElementById('custom-question-count');
+      const totalQuestions = Math.min(24, Math.max(1, parseInt(input.value, 10) || 4));
+      if (input.value != totalQuestions) input.value = totalQuestions;
+
+      const diffEl = document.querySelector('input[name="custom-diff"]:checked');
+      const difficulty = diffEl ? diffEl.value : 'medium';
+
+      // 依序產生題目清單（按關卡順序分組排列，方便學生由淺入深作答）
+      const countsMap = new Map();
+      selectedStages.forEach(st => countsMap.set(st.id, 0));
+      for (let i = 0; i < totalQuestions; i++) {
+        const st = selectedStages[i % selectedStages.length];
+        countsMap.set(st.id, countsMap.get(st.id) + 1);
+      }
+
+      const puzzleList = [];
+      selectedStages.forEach(st => {
+        const cnt = countsMap.get(st.id);
+        for (let k = 0; k < cnt; k++) {
+          puzzleList.push(createPuzzleInstance(st, difficulty, true));
+        }
+      });
+
+      // 依版面空間自動分頁（每頁最多 4 個標準格位；7x7 佔 2 格位橫跨整列以保持大字格）
+      const pages = [];
+      let currentPageItems = [];
+      let usedSlots = 0;
+
+      puzzleList.forEach((item, idx) => {
+        const slotsNeeded = item.stage.n === 7 ? 2 : 1;
+        if (usedSlots + slotsNeeded > 4 && currentPageItems.length > 0) {
+          pages.push(currentPageItems);
+          currentPageItems = [];
+          usedSlots = 0;
+        }
+        currentPageItems.push({ ...item, qNumber: idx + 1 });
+        usedSlots += slotsNeeded;
+      });
+      if (currentPageItems.length > 0) {
+        pages.push(currentPageItems);
+      }
+
+      closeModal('modal-custom-print');
+
+      const toast = document.getElementById('pdf-loading-toast');
+      const sandbox = document.getElementById('pdf-render-sandbox');
+      toast.classList.remove('hidden');
+      toast.classList.add('flex');
+
+      try {
+        if (!window.jspdf || !window.html2canvas) {
+          throw new Error('PDF 產生元件尚未載入完成');
+        }
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+
+        // 組合要渲染的頁面序列（先渲染所有題目頁；若含解答，再依序渲染解答頁）
+        const renderJobs = [];
+        pages.forEach((items, pIdx) => {
+          renderJobs.push({ items, isAnswer: false, pageIdx: pIdx + 1, totalSectionPages: pages.length });
+        });
+        if (includeAnswers) {
+          pages.forEach((items, pIdx) => {
+            renderJobs.push({ items, isAnswer: true, pageIdx: pIdx + 1, totalSectionPages: pages.length });
+          });
+        }
+
+        for (let i = 0; i < renderJobs.length; i++) {
+          if (i > 0) pdf.addPage();
+          const job = renderJobs[i];
+          sandbox.innerHTML = buildCustomWorksheetPageHTML(job.items, job.isAnswer, job.pageIdx, job.totalSectionPages, totalQuestions);
+          if (document.fonts && document.fonts.ready) await document.fonts.ready;
+          await new Promise(r => setTimeout(r, 150));
+          const canvas = await html2canvas(sandbox, { scale: 2, backgroundColor: '#ffffff' });
+          const imgData = canvas.toDataURL('image/png');
+          pdf.addImage(imgData, 'PNG', 0, 0, 210, Math.min((canvas.height * 210) / canvas.width, 297));
+        }
+
+        const stageCodes = selectedStages.map(s => s.code).join('_');
+        const suffix = includeAnswers ? '題目與解答卷' : '純題目練習卷';
+        pdf.save(`魔方陣自訂練習_${stageCodes}_共${totalQuestions}題_${suffix}.pdf`);
+      } catch (err) {
+        console.error('自訂 PDF 匯出失敗:', err);
+        showFeedbackModal('⚠️', 'PDF 產生失敗', '匯出過程中發生錯誤，請稍後再試！', false);
+      } finally {
+        toast.classList.add('hidden');
+        toast.classList.remove('flex');
+        if (sandbox) sandbox.innerHTML = '';
+      }
+    }
+
+    /**
+     * 建立自訂題數 A4 學習單單頁 HTML（支援置中數字與寬敞方格）
+     */
+    function buildCustomWorksheetPageHTML(items, isAnswerPage, pageNum, totalSectionPages, totalQuestions) {
+      const cardsHtml = items.map(item => {
+        const st = item.stage;
+        const n = st.n;
+        const sol = item.solGrid;
+        const mask = item.maskGrid;
+
+        // 依階數設定寬敞易書寫的方格尺寸
+        const cellPx = n === 1 ? 84 : n === 3 ? 64 : n === 4 ? 56 : n === 5 ? 46 : n === 6 ? 42 : 48;
+        const fontPx = n === 1 ? 34 : n === 3 ? 26 : n === 4 ? 22 : n === 5 ? 19 : n === 6 ? 17 : 19;
+        const verticalOffsetPx = Math.round(fontPx * 0.35);
+        const spanStyle = n === 7 ? 'grid-column: span 2;' : '';
+
+        let cellsHtml = '';
+        for (let r = 0; r < n; r++) {
+          for (let c = 0; c < n; c++) {
+            const isGiven = mask[r][c];
+            const val = sol[r][c];
+            const showText = isAnswerPage ? val : (isGiven ? val : '');
+            const bg = isGiven
+              ? 'background:#f3f4f6; font-weight:900; color:#111827;'
+              : (isAnswerPage ? 'background:#fef3c7; font-weight:900; color:#b91c1c;' : 'background:#ffffff;');
+            const borderRight = c < n - 1 ? 'border-right: 1.5px solid #1f2937;' : 'border-right: 2.5px solid #111827;';
+            const borderBottom = r < n - 1 ? 'border-bottom: 1.5px solid #1f2937;' : 'border-bottom: 2.5px solid #111827;';
+
+            cellsHtml += `
+              <div style="width:${cellPx}px; height:${cellPx}px; box-sizing: border-box; ${borderRight} ${borderBottom} display: flex; align-items: center; justify-content: center; text-align: center; font-size:${fontPx}px; line-height: 1; ${bg}">
+                <span style="display: inline-block; position: relative; top: -${verticalOffsetPx}px; line-height: 1;">${showText}</span>
+              </div>
+            `;
+          }
+        }
+
+        return `
+          <div style="${spanStyle} border: 2px solid #374151; border-radius: 12px; padding: 14px 12px; text-align: center; background: #fff;">
+            <div style="font-size: 16px; font-weight: 900; color: #111827; margin-bottom: 3px;">
+              第 ${item.qNumber} 題：${st.n} × ${st.n} ${st.name}
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: #b91c1c; margin-bottom: 10px;">
+              魔術常數：${st.magicConstant}（填入數字 1～${n * n}）
+            </div>
+            <div style="display: flex; flex-wrap: wrap; width: ${n * cellPx}px; margin: 0 auto; box-sizing: content-box; border-top: 2.5px solid #111827; border-left: 2.5px solid #111827; background: #ffffff;">
+              ${cellsHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div style="padding: 28px 36px; box-sizing: border-box; width: 794px; min-height: 1120px; background: #fff;">
+          <div style="border-bottom: 3px double #1f2937; padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-size: 12px; font-weight: 700; color: #92400e;">★ 清閒小築-數學遊戲館 ★</div>
+              <h1 style="font-size: 22px; font-weight: 900; margin: 2px 0 0 0; color: #111827;">
+                魔方陣自訂挑戰練習單（共 ${totalQuestions} 題）${isAnswerPage ? '【教師解答卷】' : ''}
+              </h1>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; text-align: right; color: #374151;">
+              <div>第 ${pageNum} / ${totalSectionPages} 頁</div>
+              <div>公式：M = n(n² + 1) ÷ 2</div>
+            </div>
+          </div>
+
+          <div style="background: #f9fafb; border: 1.5px solid #9ca3af; border-radius: 6px; padding: 8px 14px; margin-bottom: 16px; font-size: 13px; font-weight: 700; display: flex; justify-content: space-between;">
+            <span>班級：________</span>
+            <span>座號：____</span>
+            <span>姓名：____________</span>
+            <span>得分／完成題數：____ / ${totalQuestions}</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+            ${cardsHtml}
+          </div>
+
+          <div style="margin-top: 16px; text-align: center; font-size: 12px; font-weight: 700; color: #4b5563;">
+            清閒小築-數學遊戲館 編製｜使每一列、每一行及兩條主對角線的數字總和皆等於魔術常數 M！
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * ============================================================================
+     * PDF 學習單匯出引擎 (使用 html2canvas + jsPDF 確保繁體中文與數學格線完美呈現)
+     * ============================================================================
+     */
+    async function downloadPDF(mode) {
+      const toast = document.getElementById('pdf-loading-toast');
+      const sandbox = document.getElementById('pdf-render-sandbox');
+      toast.classList.remove('hidden');
+      toast.classList.add('flex');
+
+      try {
+        if (!window.jspdf || !window.html2canvas) {
+          throw new Error('PDF 產生元件尚未載入完成，請稍後再試或檢查網路連線。');
+        }
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const stage = STAGES_CONFIG.find(s => s.id === currentStageId);
+
+        if (mode === 'current-blank') {
+          sandbox.innerHTML = buildSingleLevelWorksheetHTML(stage, solutionGrid, givenMask, false);
+          if (document.fonts && document.fonts.ready) await document.fonts.ready;
+          await new Promise(r => setTimeout(r, 120));
+          const canvas = await html2canvas(sandbox, { scale: 2, backgroundColor: '#ffffff' });
+          const imgData = canvas.toDataURL('image/png');
+          pdf.addImage(imgData, 'PNG', 0, 0, 210, Math.min((canvas.height * 210) / canvas.width, 297));
+          pdf.save(`魔方陣挑戰_${stage.code}_學生練習卷.pdf`);
+
+        } else if (mode === 'current-answer') {
+          // 第 1 面：單純題目卷
+          sandbox.innerHTML = buildSingleLevelWorksheetHTML(stage, solutionGrid, givenMask, false);
+          if (document.fonts && document.fonts.ready) await document.fonts.ready;
+          await new Promise(r => setTimeout(r, 120));
+          const blankCanvas = await html2canvas(sandbox, { scale: 2, backgroundColor: '#ffffff' });
+          pdf.addImage(blankCanvas.toDataURL('image/png'), 'PNG', 0, 0, 210, Math.min((blankCanvas.height * 210) / blankCanvas.width, 297));
+
+          // 第 2 面：題目＋解答卷
+          pdf.addPage();
+          sandbox.innerHTML = buildSingleLevelWorksheetHTML(stage, solutionGrid, givenMask, true);
+          if (document.fonts && document.fonts.ready) await document.fonts.ready;
+          await new Promise(r => setTimeout(r, 120));
+          const ansCanvas = await html2canvas(sandbox, { scale: 2, backgroundColor: '#ffffff' });
+          pdf.addImage(ansCanvas.toDataURL('image/png'), 'PNG', 0, 0, 210, Math.min((ansCanvas.height * 210) / ansCanvas.width, 297));
+
+          pdf.save(`魔方陣挑戰_${stage.code}_題目與解答卷(雙面版).pdf`);
+
+        } else if (mode === 'all-six-levels') {
+          // 移除第一關 (1×1)，保留 3×3 至 7×7 共五大挑戰關卡，分上下兩篇排版並放大方格
+          const playableStages = STAGES_CONFIG.filter(s => s.solvable && s.n > 1);
+          const part1Stages = playableStages.slice(0, 2); // 第 1～2 關：3x3, 4x4
+          const part2Stages = playableStages.slice(2, 5); // 第 3～5 關：5x5, 6x6, 7x7
+
+          const pagesPlan = [
+            { stages: part1Stages, startRank: 1, isAnswer: false, partLabel: '上篇：3×3～4×4 推理進階' },
+            { stages: part2Stages, startRank: 3, isAnswer: false, partLabel: '下篇：5×5～7×7 高階試煉' },
+            { stages: part1Stages, startRank: 1, isAnswer: true,  partLabel: '上篇：3×3～4×4 推理進階' },
+            { stages: part2Stages, startRank: 3, isAnswer: true,  partLabel: '下篇：5×5～7×7 高階試煉' }
+          ];
+
+          for (let i = 0; i < pagesPlan.length; i++) {
+            if (i > 0) pdf.addPage();
+            const plan = pagesPlan[i];
+            sandbox.innerHTML = buildAllSixLevelsHTML(plan.stages, plan.startRank, plan.isAnswer, plan.partLabel);
+            if (document.fonts && document.fonts.ready) await document.fonts.ready;
+            await new Promise(r => setTimeout(r, 150));
+            const canvas = await html2canvas(sandbox, { scale: 2, backgroundColor: '#ffffff' });
+            const imgData = canvas.toDataURL('image/png');
+            pdf.addImage(imgData, 'PNG', 0, 0, 210, Math.min((canvas.height * 210) / canvas.width, 297));
+          }
+
+          pdf.save('魔方陣試煉_全套挑戰練習冊(3x3至7x7大方格版含解答).pdf');
+        }
+      } catch (err) {
+        console.error('PDF 匯出失敗:', err);
+        showFeedbackModal('⚠️', 'PDF 產生失敗', '匯出過程中發生錯誤，建議可直接使用瀏覽器的「列印 (Ctrl+P) → 另存為 PDF」功能！', false);
+      } finally {
+        toast.classList.add('hidden');
+        toast.classList.remove('flex');
+        if (sandbox) sandbox.innerHTML = '';
+      }
+    }
+
+    /**
+     * 建立單一關卡 A4 學習單 HTML 結構
+     */
+    function buildSingleLevelWorksheetHTML(stage, solGrid, maskGrid, includeAnswer) {
+      const n = stage.n;
+      // 放大第四、五、六關（5x5, 6x6, 7x7）方格尺寸，方便學生紙本填寫
+      const cellPx = n <= 3 ? 76 : n === 4 ? 72 : n === 5 ? 68 : n === 6 ? 62 : 56;
+      const fontPx = n <= 3 ? 30 : n === 4 ? 28 : n === 5 ? 26 : n === 6 ? 24 : 22;
+      // 補償 html2canvas 渲染 Noto Sans TC 數字基線偏下的位移量，確保視覺完全置中
+      const verticalOffsetPx = Math.round(fontPx * 0.35);
+
+      const renderGrid = (showAns) => {
+        let cellsHtml = '';
+        for (let r = 0; r < n; r++) {
+          for (let c = 0; c < n; c++) {
+            const isGiven = maskGrid[r][c];
+            const val = solGrid[r][c];
+            const display = isGiven ? val : (showAns ? val : '');
+            const cellStyle = isGiven
+              ? 'background-color: #f3f4f6; color: #111827; font-weight: 900;'
+              : (showAns ? 'background-color: #fef3c7; color: #b91c1c; font-weight: 900;' : 'background-color: #ffffff;');
+            const borderRight = c < n - 1 ? 'border-right: 2px solid #1f2937;' : 'border-right: 3px solid #111827;';
+            const borderBottom = r < n - 1 ? 'border-bottom: 2px solid #1f2937;' : 'border-bottom: 3px solid #111827;';
+
+            cellsHtml += `
+              <div style="width:${cellPx}px; height:${cellPx}px; box-sizing: border-box; ${borderRight} ${borderBottom} display: flex; align-items: center; justify-content: center; text-align: center; font-size:${fontPx}px; line-height: 1; ${cellStyle}">
+                <span style="display: inline-block; position: relative; top: -${verticalOffsetPx}px; line-height: 1;">${display}</span>
+              </div>
+            `;
+          }
+        }
+        return `
+          <div style="display: flex; flex-wrap: wrap; width: ${n * cellPx}px; margin: 0 auto; box-sizing: content-box; border-top: 3px solid #111827; border-left: 3px solid #111827; background: #ffffff;">
+            ${cellsHtml}
+          </div>
+        `;
+      };
+
+      return `
+        <div style="padding: 36px 44px; box-sizing: border-box; width: 794px; min-height: 1120px; background: #fff;">
+          <!-- 頂部標題欄 -->
+          <div style="border-bottom: 3px double #1f2937; padding-bottom: 14px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: #92400e;">★ 清閒小築-數學遊戲館｜魔方陣七重試煉 ★</div>
+              <h1 style="font-size: 28px; font-weight: 900; margin: 4px 0 0 0; color: #111827;">
+                ${stage.n} × ${stage.n} ${stage.name} — 紙本練習單 ${includeAnswer ? '（教師解答版）' : ''}
+              </h1>
+            </div>
+            <div style="text-align: right; font-size: 14px; font-weight: 700; color: #374151;">
+              <div>魔術常數 M = <span style="font-size: 20px; color: #b91c1c; font-weight: 900;">${stage.magicConstant}</span></div>
+              <div>使用數字：1 ～ ${n * n}</div>
+            </div>
+          </div>
+
+          <!-- 學生資料填寫欄 -->
+          <div style="background: #f9fafb; border: 1.5px solid #9ca3af; border-radius: 8px; padding: 10px 16px; margin-bottom: 20px; font-size: 15px; font-weight: 700; display: flex; justify-content: space-between;">
+            <span>班級：__________</span>
+            <span>座號：______</span>
+            <span>姓名：______________</span>
+            <span>日期：____月____日</span>
+          </div>
+
+          <!-- 規則說明 -->
+          <div style="background: #fffbeb; border: 1.5px solid #d97706; border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; font-size: 14px; line-height: 1.6; color: #451a03;">
+            <strong>【挑戰規則】</strong>請將連續整數 <strong>1 到 ${n * n}</strong> 不重複地填入下方 <strong>${n}×${n}</strong> 方格中，使<strong>每一列、每一行以及兩條主對角線</strong>的數字總和都等於魔術常數 <strong>${stage.magicConstant}</strong>！
+          </div>
+
+          <!-- 題目盤面 -->
+          <div style="text-align: center; margin: 20px 0;">
+            <div style="font-size: 16px; font-weight: 900; margin-bottom: 12px; color: #1f2937;">
+              ${includeAnswer ? '▼ 題目與參考解答（黃底紅字為空格解答）' : '▼ 請在空白格中填入正確數字'}
+            </div>
+            ${renderGrid(includeAnswer)}
+          </div>
+
+          <!-- 可用數字檢核表 (方便學生劃記已用數字) -->
+          <div style="margin-top: 28px; border: 1.5px solid #9ca3af; border-radius: 8px; padding: 12px 16px;">
+            <div style="font-size: 13px; font-weight: 900; color: #374151; margin-bottom: 8px;">
+              📝 數字使用檢核表（填入盤面後可將數字劃掉，避免重複或遺漏）：
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              ${Array.from({ length: n * n }, (_, i) => i + 1).map(num => `
+                <span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 26px; border: 1px solid #6b7280; border-radius: 4px; font-size: 13px; font-weight: 700; line-height: 1;">
+                  <span style="display: inline-block; position: relative; top: -4px; line-height: 1;">${num}</span>
+                </span>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- 頁尾公式小提示 -->
+          <div style="margin-top: 24px; padding-top: 12px; border-top: 1px dashed #9ca3af; display: flex; justify-content: space-between; font-size: 12px; color: #4b5563; font-weight: 700;">
+            <span>💡 魔術常數公式：M = n(n² + 1) ÷ 2</span>
+            <span>清閒小築-數學遊戲館 編製</span>
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * 建立五大挑戰關卡綜合學習單（移除 1×1 第一關，保留 3×3～7×7 並放大方格）
+     */
+    function buildAllSixLevelsHTML(stagesSubset, startRank, isAnswerPage, partLabel) {
+      const cardsHtml = stagesSubset.map((st, idx) => {
+        const rankNum = startRank + idx;
+        const n = st.n;
+        const sol = st.baseSolution;
+        // 針對 3×3～7×7 設定寬敞易書寫的方格尺寸
+        const cellPx = n === 3 ? 66 : n === 4 ? 60 : n === 5 ? 46 : n === 6 ? 44 : 48;
+        const fontPx = n === 3 ? 28 : n === 4 ? 24 : n === 5 ? 19 : n === 6 ? 18 : 19;
+        // 補償 html2canvas 渲染中文字體基線偏下的位移，讓數字精準置於方格正中央
+        const verticalOffsetPx = Math.round(fontPx * 0.35);
+        // 下篇第 3 張卡片（7x7 終極關）橫跨整列置中顯示，視覺更舒展
+        const spanStyle = (stagesSubset.length === 3 && idx === 2) ? 'grid-column: span 2;' : '';
+
+        let cellsHtml = '';
+        for (let r = 0; r < n; r++) {
+          for (let c = 0; c < n; c++) {
+            // 規則性交錯保留提示格，確保美觀與可解性
+            const keepGiven = (r + c) % 2 === 0 || (r === 0 && c === 0);
+            const val = sol[r][c];
+            const showText = isAnswerPage ? val : (keepGiven ? val : '');
+            const bg = keepGiven
+              ? 'background:#f3f4f6; font-weight:900; color:#111827;'
+              : (isAnswerPage ? 'background:#fef3c7; font-weight:900; color:#b91c1c;' : 'background:#ffffff;');
+            const borderRight = c < n - 1 ? 'border-right: 1.5px solid #1f2937;' : 'border-right: 2.5px solid #111827;';
+            const borderBottom = r < n - 1 ? 'border-bottom: 1.5px solid #1f2937;' : 'border-bottom: 2.5px solid #111827;';
+
+            cellsHtml += `
+              <div style="width:${cellPx}px; height:${cellPx}px; box-sizing: border-box; ${borderRight} ${borderBottom} display: flex; align-items: center; justify-content: center; text-align: center; font-size:${fontPx}px; line-height: 1; ${bg}">
+                <span style="display: inline-block; position: relative; top: -${verticalOffsetPx}px; line-height: 1;">${showText}</span>
+              </div>
+            `;
+          }
+        }
+
+        return `
+          <div style="${spanStyle} border: 2px solid #374151; border-radius: 12px; padding: 14px 12px; text-align: center; background: #fff;">
+            <div style="font-size: 16px; font-weight: 900; color: #111827; margin-bottom: 3px;">
+              挑戰 ${rankNum}：${st.n} × ${st.n} ${st.name}
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: #b91c1c; margin-bottom: 10px;">
+              魔術常數：${st.magicConstant}（數字 1～${n * n}）
+            </div>
+            <div style="display: flex; flex-wrap: wrap; width: ${n * cellPx}px; margin: 0 auto; box-sizing: content-box; border-top: 2.5px solid #111827; border-left: 2.5px solid #111827; background: #ffffff;">
+              ${cellsHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div style="padding: 28px 36px; box-sizing: border-box; width: 794px; min-height: 1120px; background: #fff;">
+          <div style="border-bottom: 3px double #1f2937; padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-size: 12px; font-weight: 700; color: #92400e;">★ 清閒小築-數學遊戲館 ★</div>
+              <h1 style="font-size: 22px; font-weight: 900; margin: 2px 0 0 0; color: #111827;">
+                魔方陣試煉 — 五大挑戰關卡學習單（${partLabel}）${isAnswerPage ? '【解答】' : ''}
+              </h1>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; text-align: right; color: #374151;">
+              <div>註：2×2 魔方陣無解！</div>
+              <div>公式：M = n(n² + 1) ÷ 2</div>
+            </div>
+          </div>
+
+          <div style="background: #f9fafb; border: 1.5px solid #9ca3af; border-radius: 6px; padding: 8px 14px; margin-bottom: 16px; font-size: 13px; font-weight: 700; display: flex; justify-content: space-between;">
+            <span>班級：________</span>
+            <span>座號：____</span>
+            <span>姓名：____________</span>
+            <span>本頁過關數：____ / ${stagesSubset.length} 關</span>
+          </div>
+
+          <!-- 寬敞網格排版 -->
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+            ${cardsHtml}
+          </div>
+
+          <div style="margin-top: 16px; text-align: center; font-size: 12px; font-weight: 700; color: #4b5563;">
+            清閒小築-數學遊戲館 編製｜把連續整數 1 到 n² 排成 n×n 正方形，使每列、每行及兩條主對角線總和皆相同！
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * ============================================================================
+     * 彈跳視窗控制與回饋提示工具函式
+     * ============================================================================
+     */
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('hidden');
+      el.classList.add('flex');
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('hidden');
+      el.classList.remove('flex');
+    }
+
+    function openFormulaModal() {
+      openModal('modal-formula');
+    }
+
+    function showFeedbackModal(icon, title, message, showNextBtn = false) {
+      document.getElementById('feedback-icon').textContent = icon;
+      document.getElementById('feedback-title').textContent = title;
+      document.getElementById('feedback-message').textContent = message;
+      const nextBtn = document.getElementById('btn-next-level');
+      if (showNextBtn) {
+        nextBtn.classList.remove('hidden');
+      } else {
+        nextBtn.classList.add('hidden');
+      }
+      openModal('modal-feedback');
+    }
+  </script>
+</body>
+</html>
